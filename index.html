@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#0a0a0f">
 <title>💪 운동 일지</title>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -162,6 +163,17 @@
   .exercise-card.squat .card-input-wrap { flex: 1; }
   .squat-info { display: flex; flex-direction: column; gap: 2px; }
 
+  /* weight spans full width */
+  .exercise-card.weight { grid-column: span 2; flex-direction: row; align-items: center; gap: 14px; padding: 12px 16px; }
+  .exercise-card.weight::before { background: #35f1a7; }
+  .exercise-card.weight .card-input-wrap { flex: 1; }
+  .exercise-card.weight .card-input-wrap:focus-within { border-color: #35f1a7; }
+  .weight-info { display: flex; flex-direction: column; gap: 2px; }
+  .weight-diff { font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .weight-diff.up   { color: var(--danger); }
+  .weight-diff.down { color: #35f1a7; }
+  .weight-diff.same { color: var(--text-muted); }
+
   /* ── MEMO ── */
   .memo-section { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
   .memo-label { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
@@ -274,16 +286,80 @@
 
   /* ── TOAST ── */
   .toast {
-    position: fixed; bottom: calc(60px + var(--safe-bot) + 16px); left: 50%;
-    transform: translateX(-50%) translateY(80px);
+    position: fixed;
+    bottom: calc(70px + var(--safe-bot));
+    left: 50%;
+    transform: translateX(-50%);
     background: var(--accent); color: #0a0a0f;
     font-family: 'Black Han Sans', sans-serif; font-size: 14px;
     padding: 11px 22px; border-radius: 999px;
     box-shadow: 0 6px 24px rgba(200,241,53,0.3);
-    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
     z-index: 999; white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
   }
-  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* ── STATS PANEL ── */
+  .range-bar { display: flex; gap: 6px; margin-bottom: 16px; }
+  .range-btn {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted); font-family: 'Black Han Sans', sans-serif;
+    font-size: 12px; padding: 8px 4px; border-radius: 8px; cursor: pointer;
+    text-align: center; transition: all 0.15s;
+  }
+  .range-btn.active { background: var(--accent); color: #0a0a0f; border-color: var(--accent); }
+  .range-btn:active { transform: scale(0.96); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 11px 9px;
+    display: flex; flex-direction: column; gap: 3px;
+    position: relative; overflow: hidden;
+  }
+  .summary-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px; border-radius: 12px 12px 0 0;
+  }
+  .sc-running::before { background: var(--accent); }
+  .sc-pullup::before  { background: var(--accent2); }
+  .sc-pushup::before  { background: var(--accent3); }
+  .sc-situp::before   { background: var(--danger); }
+  .sc-squat::before   { background: var(--purple); }
+  .sc-weight::before  { background: #35f1a7; }
+  .summary-icon { font-size: 14px; }
+  .summary-label { font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .summary-val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; line-height: 1.1; }
+  .summary-unit { font-size: 9px; color: var(--text-muted); }
+  .summary-sub { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+
+  .streak-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+  .streak-card {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 10px; text-align: center;
+  }
+  .streak-num { font-family: 'Black Han Sans', sans-serif; font-size: 26px; color: var(--accent); line-height: 1; }
+  .streak-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  .chart-section { margin-bottom: 22px; }
+  .chart-header { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .chart-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .chart-title { font-family: 'Black Han Sans', sans-serif; font-size: 14px; }
+  .chart-unit { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .chart-best { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+  .chart-best span { font-weight: 700; }
+  .chart-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 8px 8px; position: relative;
+  }
+  .no-data-stats { text-align: center; color: var(--text-muted); font-size: 13px; padding: 50px 20px; line-height: 2; }
 </style>
 </head>
 <body>
@@ -331,6 +407,10 @@
           <div class="squat-info"><div class="card-icon">🏋️</div><div class="card-name">스쿼트</div><div class="card-unit">SQUAT</div></div>
           <div class="card-input-wrap"><input type="number" class="card-num-input" id="squat" placeholder="0" min="0" inputmode="numeric"><span class="unit-badge">회</span></div>
         </div>
+        <div class="exercise-card weight">
+          <div class="weight-info"><div class="card-icon">⚖️</div><div class="card-name">체중</div><div class="card-unit">WEIGHT</div><div class="weight-diff" id="weightDiff"></div></div>
+          <div class="card-input-wrap"><input type="number" class="card-num-input" id="weight" placeholder="0.0" min="0" step="0.1" inputmode="decimal"><span class="unit-badge">kg</span></div>
+        </div>
       </div>
 
       <div class="memo-section">
@@ -358,6 +438,17 @@
       <div class="log-list" id="logList"></div>
     </div>
 
+    <!-- STATS PANEL -->
+    <div class="panel" id="panel-stats">
+      <div class="range-bar">
+        <button class="range-btn active" id="r7"  onclick="setRange(7)">7일</button>
+        <button class="range-btn" id="r30" onclick="setRange(30)">30일</button>
+        <button class="range-btn" id="r90" onclick="setRange(90)">90일</button>
+        <button class="range-btn" id="r0"  onclick="setRange(0)">전체</button>
+      </div>
+      <div id="statsContent"></div>
+    </div>
+
   </div><!-- /scroll-content -->
 
   <!-- BOTTOM NAV -->
@@ -370,6 +461,9 @@
     </button>
     <button class="nav-btn" id="nav-history" onclick="switchTab('history')">
       <span class="nav-icon">📋</span><span class="nav-label">전체기록</span>
+    </button>
+    <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">
+      <span class="nav-icon">📊</span><span class="nav-label">누적</span>
     </button>
   </div>
 
@@ -399,10 +493,26 @@
   function saveLogs(l) { localStorage.setItem(STORAGE_KEY, JSON.stringify(l)); }
   function getLogByDate(d) { return loadLogs().find(l => l.date === d); }
 
+  // 날짜 기준 이전 체중 기록 찾기
+  function getPrevWeight(currentDate) {
+    const logs = loadLogs().filter(l => l.date < currentDate && l.weight > 0).sort((a,b) => b.date.localeCompare(a.date));
+    return logs.length ? logs[0].weight : null;
+  }
+
+  function getWeightDiffHTML(currentWeight, prevWeight) {
+    if (!prevWeight || !currentWeight) return '';
+    const diff = Math.round((currentWeight - prevWeight) * 10) / 10;
+    if (diff > 0) return `<span class="weight-diff up">▲ +${diff}kg</span>`;
+    if (diff < 0) return `<span class="weight-diff down">▼ ${diff}kg</span>`;
+    return `<span class="weight-diff same">― 유지</span>`;
+  }
+
+  let toastTimer = null;
   function showToast(msg) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove('show'); toastTimer = null; }, 1000);
   }
 
   function updateHeaderDate() {
@@ -413,13 +523,14 @@
   }
 
   function switchTab(name) {
-    ['input','calendar','history'].forEach(n => {
+    ['input','calendar','history','stats'].forEach(n => {
       document.getElementById('panel-'+n).classList.toggle('active', n===name);
       document.getElementById('nav-'+n).classList.toggle('active', n===name);
     });
     document.getElementById('scrollContent').scrollTop = 0;
     if (name==='calendar') renderCalendar();
     if (name==='history') renderLogs();
+    if (name==='stats') renderStats();
   }
 
   function setToday() {
@@ -433,10 +544,23 @@
   function prefillFromDate(date) {
     const log = getLogByDate(date);
     EXERCISES.forEach(e => { document.getElementById(e.id).value = log ? (log[e.id] || '') : ''; });
+    document.getElementById('weight').value = log ? (log.weight || '') : '';
     document.getElementById('memo').value = log ? (log.memo || '') : '';
+    updateWeightDiff(date);
   }
+
+  function updateWeightDiff(date) {
+    const wInput = parseFloat(document.getElementById('weight').value) || 0;
+    const prev = getPrevWeight(date);
+    document.getElementById('weightDiff').innerHTML = wInput > 0 ? getWeightDiffHTML(wInput, prev) : (prev ? `<span class="weight-diff same" style="font-size:10px">이전: ${prev}kg</span>` : '');
+  }
+
   document.getElementById('dateInput').addEventListener('change', function() {
     updateDateDisplay(); prefillFromDate(this.value);
+  });
+  document.getElementById('weight').addEventListener('input', function() {
+    const date = document.getElementById('dateInput').value;
+    updateWeightDiff(date);
   });
 
   function saveLog() {
@@ -448,14 +572,17 @@
       vals[e.id] = e.id==='running' ? (parseFloat(raw)||0) : (parseInt(raw)||0);
       if (vals[e.id] > 0) any = true;
     });
+    const weight = parseFloat(document.getElementById('weight').value) || 0;
+    if (weight > 0) any = true;
     if (!any) { showToast('최소 하나는 입력해주세요 💪'); return; }
     const memo = document.getElementById('memo').value.trim();
     const logs = loadLogs();
     const idx = logs.findIndex(l => l.date===date);
-    const entry = { date, ...vals, memo, savedAt: new Date().toISOString() };
+    const entry = { date, ...vals, weight, memo, savedAt: new Date().toISOString() };
     if (idx>=0) { logs[idx]=entry; showToast('✅ 업데이트 완료!'); }
     else { logs.unshift(entry); showToast('✅ 저장 완료!'); }
     saveLogs(logs);
+    updateWeightDiff(date);
   }
 
   function deleteLog(date) {
@@ -468,7 +595,18 @@
     const logs = loadLogs().sort((a,b) => b.date.localeCompare(a.date));
     const list = document.getElementById('logList');
     if (!logs.length) { list.innerHTML='<div class="empty-log">아직 기록이 없어요<br>운동을 기록해보세요 💪</div>'; return; }
-    list.innerHTML = logs.map(log => `
+    list.innerHTML = logs.map((log, idx, arr) => {
+      // 이전 날짜 기록에서 체중 찾기
+      const prevLogs = arr.slice(idx+1).filter(l => l.weight > 0);
+      const prevWeight = prevLogs.length ? prevLogs[0].weight : null;
+      const weightHTML = log.weight > 0 ? `
+        <div class="log-stat">
+          <span class="log-stat-icon">⚖️</span>
+          <span class="log-stat-val" style="color:#35f1a7">${log.weight}</span>
+          <span class="log-stat-unit">kg</span>
+          ${prevWeight ? getWeightDiffHTML(log.weight, prevWeight) : ''}
+        </div>` : '';
+      return `
       <div class="log-item">
         <div class="log-header">
           <span class="log-date">${formatDateKr(log.date)}</span>
@@ -476,9 +614,11 @@
         </div>
         <div class="log-stats">
           ${EXERCISES.filter(e=>log[e.id]>0).map(e=>`<div class="log-stat"><span class="log-stat-icon">${e.icon}</span><span class="log-stat-val" style="color:${e.color}">${log[e.id]}</span><span class="log-stat-unit">${e.unit}</span></div>`).join('')}
+          ${weightHTML}
         </div>
         ${log.memo?`<div class="log-memo">${log.memo}</div>`:''}
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   function initCalMonth() { const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth(); }
@@ -489,7 +629,8 @@
   }
 
   function renderCalendar() {
-    const logs=loadLogs(); const logMap={};
+    const logs=loadLogs().sort((a,b)=>a.date.localeCompare(b.date));
+    const logMap={};
     logs.forEach(l=>{logMap[l.date]=l;});
     const mnames=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
     document.getElementById('calMonthLabel').innerHTML=`<span>${calYear}</span>년 ${mnames[calMonth]}`;
@@ -508,8 +649,19 @@
       let inner=`<div class="cal-num">${d}</div>`;
       if(log){
         const active=EXERCISES.filter(e=>log[e.id]>0);
-        inner+=`<div class="cal-dots">${active.map(e=>`<div class="cal-dot" style="background:${e.color}"></div>`).join('')}</div>`;
-        inner+=`<div class="cal-summary">${active.slice(0,2).map(e=>`<div class="cal-summary-item">${e.icon}${log[e.id]}${e.unit}</div>`).join('')}</div>`;
+        const allDots = [...active, ...(log.weight>0 ? [{color:'#35f1a7'}] : [])];
+        inner+=`<div class="cal-dots">${allDots.map(e=>`<div class="cal-dot" style="background:${e.color}"></div>`).join('')}</div>`;
+        const summaryItems = active.slice(0,1).map(e=>`<div class="cal-summary-item">${e.icon}${log[e.id]}${e.unit}</div>`).join('');
+        // 체중 + 전날 대비
+        let weightSummary = '';
+        if (log.weight > 0) {
+          const prevEntry = logs.filter(l => l.date < ds && l.weight > 0).slice(-1)[0];
+          const prev = prevEntry ? prevEntry.weight : null;
+          const diff = prev ? Math.round((log.weight - prev)*10)/10 : null;
+          const arrow = diff === null ? '' : diff > 0 ? `▲${diff}` : diff < 0 ? `▼${diff}` : '―';
+          weightSummary = `<div class="cal-summary-item" style="color:#35f1a7">⚖️${log.weight}kg${arrow?` ${arrow}`:''}</div>`;
+        }
+        inner+=`<div class="cal-summary">${summaryItems}${weightSummary}</div>`;
       }
       const click=log?`onclick="showCalDetail('${ds}')"` :'';
       html+=`<div class="${cls}" ${click}>${inner}</div>`;
@@ -521,10 +673,223 @@
     selectedCalDate=ds; renderCalendar();
     const log=getLogByDate(ds); if(!log) return;
     const stats=EXERCISES.filter(e=>log[e.id]>0).map(e=>`<div class="cal-detail-stat"><span class="cal-detail-icon">${e.icon}</span><span class="cal-detail-val" style="color:${e.color}">${log[e.id]}</span><span class="cal-detail-unit">${e.unit}</span></div>`).join('');
-    document.getElementById('calDetail').innerHTML=`<div class="cal-detail"><div class="cal-detail-date">${formatDateKr(ds)}</div><div class="cal-detail-stats">${stats}</div>${log.memo?`<div class="cal-detail-memo">${log.memo}</div>`:''}</div>`;
+    let weightHTML = '';
+    if (log.weight > 0) {
+      const prev = getPrevWeight(ds);
+      const diffHTML = prev ? getWeightDiffHTML(log.weight, prev) : '';
+      weightHTML = `<div class="cal-detail-stat"><span class="cal-detail-icon">⚖️</span><span class="cal-detail-val" style="color:#35f1a7">${log.weight}</span><span class="cal-detail-unit">kg</span>${diffHTML}</div>`;
+    }
+    document.getElementById('calDetail').innerHTML=`<div class="cal-detail"><div class="cal-detail-date">${formatDateKr(ds)}</div><div class="cal-detail-stats">${stats}${weightHTML}</div>${log.memo?`<div class="cal-detail-memo">${log.memo}</div>`:''}</div>`;
   }
 
-  // INIT
+  // ── STATS ──
+  let currentRange = 7;
+  let chartInstances = {};
+
+  const ALL_ITEMS = [
+    { id: 'running', label: '러닝',  icon: '🏃', unit: 'km',  color: '#c8f135' },
+    { id: 'pullup',  label: '풀업',  icon: '🦾', unit: '회',  color: '#f1a735' },
+    { id: 'pushup',  label: '푸시업', icon: '🔥', unit: '회',  color: '#35c8f1' },
+    { id: 'situp',   label: '싯업',  icon: '⚡', unit: '회',  color: '#f15535' },
+    { id: 'squat',   label: '스쿼트', icon: '🏋️', unit: '회',  color: '#b535f1' },
+    { id: 'weight',  label: '체중',  icon: '⚖️', unit: 'kg',  color: '#35f1a7' },
+  ];
+
+  function setRange(days) {
+    currentRange = days;
+    ['r7','r30','r90','r0'].forEach(id => document.getElementById(id).classList.remove('active'));
+    const map = {7:'r7',30:'r30',90:'r90',0:'r0'};
+    document.getElementById(map[days]).classList.add('active');
+    renderStats();
+  }
+
+  function getFilteredLogs(days) {
+    const all = loadLogs().sort((a,b) => a.date.localeCompare(b.date));
+    if (!days) return all;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutStr = cutoff.toISOString().split('T')[0];
+    return all.filter(l => l.date >= cutStr);
+  }
+
+  function calcStreak() {
+    const all = loadLogs().sort((a,b) => b.date.localeCompare(a.date));
+    if (!all.length) return { current: 0, best: 0 };
+    let current = 0, best = 0, streak = 0;
+    const today = getTodayStr();
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    // current streak
+    let check = (all[0].date === today || all[0].date === yStr) ? new Date(all[0].date) : null;
+    if (check) {
+      for (const l of all) {
+        const d = new Date(l.date);
+        const diff = Math.round((check - d) / 86400000);
+        if (diff === 0) { current++; }
+        else if (diff === 1) { current++; check = d; }
+        else break;
+      }
+    }
+    // best streak
+    let prev = null;
+    for (const l of [...all].reverse()) {
+      if (!prev) { streak = 1; }
+      else {
+        const diff = Math.round((new Date(l.date) - new Date(prev)) / 86400000);
+        streak = diff === 1 ? streak + 1 : 1;
+      }
+      best = Math.max(best, streak);
+      prev = l.date;
+    }
+    return { current, best };
+  }
+
+  function destroyCharts() {
+    Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+    chartInstances = {};
+  }
+
+  function renderStats() {
+    destroyCharts();
+    const logs = getFilteredLogs(currentRange);
+    const content = document.getElementById('statsContent');
+
+    if (!logs.length) {
+      content.innerHTML = '<div class="no-data-stats">📊<br>아직 기록이 없어요<br>운동을 기록하면 그래프가 나타납니다</div>';
+      return;
+    }
+
+    // ── STREAK ──
+    const { current, best } = calcStreak();
+    const allLogs = loadLogs();
+    const totalDays = allLogs.length;
+
+    // ── SUMMARY CARDS ──
+    let summaryHTML = '<div class="summary-grid">';
+    ALL_ITEMS.forEach(item => {
+      const vals = logs.filter(l => l[item.id] > 0).map(l => l[item.id]);
+      if (!vals.length) return;
+      const total = vals.reduce((a,b)=>a+b,0);
+      const avg = (total/vals.length).toFixed(item.id==='running'||item.id==='weight'?1:0);
+      const best = item.id==='weight'
+        ? Math.min(...vals).toFixed(1)
+        : item.id==='running' ? Math.max(...vals).toFixed(1) : Math.max(...vals);
+      const sublabel = item.id==='weight' ? `최저 ${best}${item.unit}` : `최고 ${best}${item.unit}`;
+      summaryHTML += `
+        <div class="summary-card sc-${item.id}">
+          <div class="summary-icon">${item.icon}</div>
+          <div class="summary-label">${item.label}</div>
+          <div class="summary-val" style="color:${item.color}">${item.id==='weight'?vals[vals.length-1].toFixed(1):item.id==='running'?(total).toFixed(1):total}</div>
+          <div class="summary-unit">${item.id==='weight'?'현재kg':item.id==='running'?'총km':'총회'}</div>
+          <div class="summary-sub">평균 ${avg}${item.unit}</div>
+        </div>`;
+    });
+    summaryHTML += '</div>';
+
+    const streakHTML = `
+      <div class="streak-bar">
+        <div class="streak-card"><div class="streak-num">${current}</div><div class="streak-label">CURRENT STREAK</div></div>
+        <div class="streak-card"><div class="streak-num">${best}</div><div class="streak-label">BEST STREAK</div></div>
+        <div class="streak-card"><div class="streak-num">${totalDays}</div><div class="streak-label">TOTAL DAYS</div></div>
+      </div>`;
+
+    // ── CHARTS ──
+    let chartsHTML = '';
+    ALL_ITEMS.forEach(item => {
+      const filtered = logs.filter(l => l[item.id] > 0);
+      if (filtered.length < 2) return;
+      const bestVal = item.id==='weight' ? Math.min(...filtered.map(l=>l[item.id])) : Math.max(...filtered.map(l=>l[item.id]));
+      chartsHTML += `
+        <div class="chart-section">
+          <div class="chart-header">
+            <div class="chart-dot" style="background:${item.color}"></div>
+            <span class="chart-title">${item.icon} ${item.label}</span>
+            <span class="chart-unit">${item.unit}</span>
+            <span class="chart-best">${item.id==='weight'?'최저':'최고'} <span style="color:${item.color}">${item.id==='running'||item.id==='weight'?parseFloat(bestVal).toFixed(1):bestVal}${item.unit}</span></span>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-${item.id}" height="130"></canvas></div>
+        </div>`;
+    });
+
+    content.innerHTML = summaryHTML + streakHTML + chartsHTML;
+
+    // draw charts after DOM update
+    requestAnimationFrame(() => {
+      ALL_ITEMS.forEach(item => {
+        const filtered = logs.filter(l => l[item.id] > 0);
+        if (filtered.length < 2) return;
+        const canvas = document.getElementById('chart-'+item.id);
+        if (!canvas) return;
+
+        const labels = filtered.map(l => {
+          const [,m,d] = l.date.split('-');
+          return `${+m}/${+d}`;
+        });
+        const data = filtered.map(l => l[item.id]);
+
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0,0,0,130);
+        grad.addColorStop(0, item.color + '44');
+        grad.addColorStop(1, item.color + '00');
+
+        chartInstances[item.id] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data,
+              borderColor: item.color,
+              borderWidth: 2,
+              backgroundColor: grad,
+              pointBackgroundColor: item.color,
+              pointRadius: filtered.length > 20 ? 2 : 4,
+              pointHoverRadius: 6,
+              tension: 0.35,
+              fill: true,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1a1a24',
+                borderColor: item.color,
+                borderWidth: 1,
+                titleColor: '#e8e8f0',
+                bodyColor: item.color,
+                titleFont: { family: 'JetBrains Mono', size: 11 },
+                bodyFont: { family: 'JetBrains Mono', size: 13, weight: 'bold' },
+                callbacks: { label: ctx => ` ${ctx.parsed.y}${item.unit}` }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#6a6a7a', font: { family: 'JetBrains Mono', size: 9 },
+                  maxTicksLimit: 8, maxRotation: 0,
+                },
+                grid: { color: '#2a2a3a' },
+                border: { color: '#2a2a3a' }
+              },
+              y: {
+                ticks: {
+                  color: '#6a6a7a', font: { family: 'JetBrains Mono', size: 9 },
+                  maxTicksLimit: 5,
+                },
+                grid: { color: '#2a2a3a' },
+                border: { color: '#2a2a3a' }
+              }
+            }
+          }
+        });
+      });
+    });
+  }
+
+  // ── INIT ──
   updateHeaderDate();
   initCalMonth();
   setToday();
